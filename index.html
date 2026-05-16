@@ -927,6 +927,7 @@ function toast(msg, type='ok') {
 }
 
 // ════════════════════════════════════════
+// CURSOR// ════════════════════════════════════════
 // CURSOR
 // ════════════════════════════════════════
 const cur=document.getElementById('cur'), cur2=document.getElementById('cur2');
@@ -943,13 +944,30 @@ document.getElementById('confirmModal').addEventListener('click', function(e) {
 });
 
 // ════════════════════════════════════════
-// SYNC WITH STORE
-// Patch the store page to read from localStorage
+// SYNC WITH STORE (المزامنة الحية مع السيرفر)
 // ════════════════════════════════════════
-// The store (tng-store.html) reads products from localStorage key 'tng_products'
-// if present, otherwise falls back to hardcoded array.
-// Add this one line to tng-store.html's renderProducts():
-//   const products = JSON.parse(localStorage.getItem('tng_products') || 'null') || defaultProducts;
+async function syncAdminWithSheets() {
+  if (typeof SHEET_URL !== 'undefined' && SHEET_URL) {
+    try {
+      const response = await fetch(SHEET_URL + '?action=getProducts');
+      const data = await response.json();
+      if (data && data.products && data.products.length > 0) {
+        // تحديث البيانات محلياً ليتزامن المتجر والآدمين فوراً
+        localStorage.setItem('tng_products', JSON.stringify(data.products));
+        
+        // إعادة عرض المنتجات في لوحة التحكم بناءً على البيانات الجديدة
+        if (typeof renderAdminProducts === 'function') {
+          renderAdminProducts();
+        } else if (typeof renderProducts === 'function') {
+          renderProducts();
+        }
+      }
+    } catch(e) { console.error('Admin sync error:', e); }
+  }
+}
+
+// تشغيل جلب المنتجات الحية فوراً عند فتح لوحة التحكم
+syncAdminWithSheets();
 </script>
 </body>
 </html>
