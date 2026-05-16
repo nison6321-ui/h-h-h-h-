@@ -554,14 +554,24 @@ function getProducts() {
 }
 function saveProducts(arr) {
   try { localStorage.setItem('tng_products', JSON.stringify(arr)); } catch {}
-  // مزامنة مع Sheets
-  if (SHEET_URL && SHEET_URL !== 'https://script.google.com/macros/s/AKfycbzw1hOxlw9021sacuVShih5kNVIOkdE1NtcV9Q-21vhcvKagk0L-82rF8HGdOQzI4lL/exec') {
-    fetch(SHEET_URL, { method:'POST', body: JSON.stringify({ action:'saveProducts', products: arr }) }).catch(()=>{});
-  }
+  // حفظ في Sheets دائماً
+  fetch(SHEET_URL, { method:'POST', body: JSON.stringify({ action:'saveProducts', products: arr }) }).catch(()=>{});
+}
+
+async function fetchProductsFromSheets() {
+  try {
+    const r = await fetch(SHEET_URL + '?action=getProducts');
+    const d = await r.json();
+    if (d.products && d.products.length) {
+      products = d.products.map(p => ({ ...p, id: parseInt(p.id) }));
+      localStorage.setItem('tng_products', JSON.stringify(products));
+      return true;
+    }
+  } catch {}
+  return false;
 }
 
 async function fetchOrdersFromSheets() {
-  if (!SHEET_URL || SHEET_URL === 'https://script.google.com/macros/s/AKfycbzw1hOxlw9021sacuVShih5kNVIOkdE1NtcV9Q-21vhcvKagk0L-82rF8HGdOQzI4lL/exec') return null;
   try {
     const r = await fetch(SHEET_URL + '?action=getOrders');
     const d = await r.json();
@@ -581,12 +591,14 @@ let deleteTargetId = null;
 // ════════════════════════════════════════
 // LOGIN
 // ════════════════════════════════════════
-function doLogin() {
+async function doLogin() {
   const user = document.getElementById('loginUser').value.trim();
   const pass = document.getElementById('loginPass').value;
   if (user === 'admin' && pass === 'tng2026') {
     document.getElementById('loginScreen').classList.add('out');
     document.getElementById('app').classList.add('show');
+    // جلب المنتجات من Sheets أولاً
+    await fetchProductsFromSheets();
     renderTable();
     renderOrders();
     updateStats();
